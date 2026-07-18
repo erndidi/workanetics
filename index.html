@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workanetics — Billing platform migrations without data loss</title>
+<meta name="description" content="Workanetics migrates medical billing companies and small practices between billing platforms without losing claims history, AR balances, or payer data. Fixed price, HIPAA-compliant, proven by a line-by-line reconciliation report.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75,600;75,700;75,800;100,400;100,500;100,600&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F8F6F0;
+    --ink:#23332E;
+    --ink-2:#2D413A;
+    --ink-soft:#66736D;
+    --rule:#E1E2DA;
+    --rule-dark:#53665E;
+    --green:#4F8F73;
+    --green-bright:#75B394;
+    --green-soft:#E5F0E9;
+    --amber:#D9AD62;
+    --loss:#B96B5A;
+    --white:#FFFEFB;
+    --max:1080px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Public Sans',system-ui,sans-serif;
+    font-size:17px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+  .mono{font-family:'IBM Plex Mono',monospace}
+
+  /* ================= HEADER ================= */
+  header{
+    background:var(--ink);
+    color:var(--paper);
+  }
+  .head-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 0;gap:16px;flex-wrap:wrap;
+  }
+  .brand{
+    font-family:'Archivo',sans-serif;font-stretch:75%;font-weight:800;
+    font-size:1.45rem;letter-spacing:.02em;text-transform:uppercase;
+    text-decoration:none;color:var(--paper);
+  }
+  .brand .tld{color:var(--green-bright)}
+  .head-cta{
+    font-family:'Archivo',sans-serif;font-stretch:75%;font-weight:600;
+    font-size:.85rem;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--ink);background:var(--amber);
+    text-decoration:none;padding:9px 18px;border-radius:3px;
+    transition:transform .15s, background .15s;
+  }
+  .head-cta:hover{background:var(--green-bright);transform:translateY(-1px)}
+
+  /* ================= HERO (dark) ================= */
+  .hero{
+    background:
+      linear-gradient(160deg, rgba(47,191,133,.10), transparent 55%),
+      repeating-linear-gradient(0deg, transparent 0 27px, rgba(255,255,255,.045) 27px 28px),
+      var(--ink);
+    color:var(--paper);
+    padding:76px 0 0;
+    position:relative;overflow:hidden;
+  }
+  .hero-grid{
+    display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);
+    gap:56px;align-items:center;padding-bottom:64px;
+  }
+  .eyebrow{
+    display:inline-block;
+    font-family:'IBM Plex Mono',monospace;font-size:.76rem;
+    letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink);background:var(--green-bright);
+    padding:5px 12px;border-radius:2px;margin-bottom:22px;
+  }
+  h1{
+    font-family:'Archivo',sans-serif;font-stretch:75%;font-weight:800;
+    font-size:clamp(2.3rem,5.2vw,3.9rem);line-height:1.02;
+    letter-spacing:.004em;margin-bottom:22px;
+  }
+  h1 .hl{
+    background:linear-gradient(transparent 62%, rgba(242,179,61,.55) 62%);
+  }
+  h1 .loss{color:var(--loss)}
+  .lede{
+    font-size:1.1rem;color:#B9C4BD;max-width:33em;margin-bottom:32px;
+  }
+  .cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .btn{
+    display:inline-block;
+    font-family:'Archivo',sans-serif;font-stretch:75%;font-weight:700;
+    font-size:1rem;letter-spacing:.04em;text-transform:uppercase;
+    text-decoration:none;padding:15px 28px;border-radius:3px;
+    border:none;cursor:pointer;
+    transition:transform .15s, background .15s, box-shadow .15s;
+  }
+  .btn-amber{background:var(--amber);color:var(--ink);box-shadow:0 6px 20px rgba(242,179,61,.28)}
+  .btn-amber:hover{background:var(--green-bright);transform:translateY(-2px);box-shadow:0 10px 24px rgba(47,191,133,.3)}
+  .btn:focus-visible{outline:3px solid var(--green-bright);outline-offset:2px}
+  .hero-sub{font-size:.82rem;color:#8FA098}
+  .hero-sub b{color:var(--green-bright);font-weight:500}
+
+  /* --- ledger card (signature) --- */
+  .ledger{
+    background:var(--white);color:var(--ink);
+    border-radius:6px;
+    box-shadow:0 24px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.08);
+    font-family:'IBM Plex Mono',monospace;font-size:.8rem;
+    overflow:hidden;transform:rotate(.6deg);
+    position:relative;
+  }
+  .ledger::after{ /* audit stamp */
+    content:"VERIFIED";
+    position:absolute;top:50%;right:14px;
+    font-family:'Archivo',sans-serif;font-stretch:75%;font-weight:800;
+    font-size:1.5rem;letter-spacing:.14em;color:var(--green);
+    border:3px solid var(--green);border-radius:4px;padding:4px 12px;
+    transform:rotate(-12deg) translateY(-160%);opacity:.16;pointer-events:none;
+  }
+  .ledger-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:12px 16px;border-bottom:2px solid var(--ink);
+    font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+  }
+  .ledger-head .stamp{
+    color:var(--white);background:var(--green);
+    padding:3px 9px;border-radius:2px;font-weight:500;
+  }
+  .ledger table{width:100%;border-collapse:collapse}
+  .ledger th,.ledger td{
+    text-align:right;padding:10px 16px;border-bottom:1px solid var(--rule);
+    font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums;
+  }
+  .ledger th:first-child,.ledger td:first-child{text-align:left}
+  .ledger thead th{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+  .ledger tbody tr:hover{background:var(--green-soft)}
+  .ledger tbody tr:last-child td{border-bottom:none}
+  .ledger td.ok{color:var(--green);font-weight:500}
+  .ledger-row{opacity:0;transform:translateY(8px);animation:rowIn .5s ease forwards}
+  .ledger-row:nth-child(1){animation-delay:.15s}
+  .ledger-row:nth-child(2){animation-delay:.35s}
+  .ledger-row:nth-child(3){animation-delay:.55s}
+  .ledger-row:nth-child(4){animation-delay:.75s}
+  .ledger-row:nth-child(5){animation-delay:.95s}
+  @keyframes rowIn{to{opacity:1;transform:none}}
+  .ledger-foot{
+    padding:11px 16px;font-size:.71rem;
+    background:var(--green-soft);border-top:1px solid var(--rule);
+    color:var(--ink-soft);
+  }
+  .ledger-foot strong{color:var(--green);font-weight:500}
+
+  /* --- migration flow strip --- */
+  .flow{
+    border-top:1px solid var(--rule-dark);
+    background:rgba(0,0,0,.22);
+    padding:16px 0;
+  }
+  .flow-inner{
+    display:flex;align-items:center;gap:18px;
+    font-family:'IBM Plex Mono',monospace;font-size:.74rem;
+    letter-spacing:.06em;text-transform:uppercase;color:#9FB0A8;
+  }
+  .flow .node{
+    border:1px solid var(--rule-dark);border-radius:3px;
+    padding:6px 12px;white-space:nowrap;background:rgba(255,255,255,.03);
+  }
+  .flow .node.dest{border-color:var(--green);color:var(--green-bright)}
+  .flow-track{
+    flex:1;height:2px;background:var(--rule-dark);
+    position:relative;overflow:visible;min-width:60px;
+  }
+  .packet{
+    position:absolute;top:50%;width:7px;height:7px;border-radius:50%;
+    background:var(--green-bright);transform:translateY(-50%);
+    box-shadow:0 0 8px var(--green-bright);
+    animation:travel 2.6s linear infinite;
+  }
+  .packet:nth-child(2){animation-delay:.9s;background:var(--amber);box-shadow:0 0 8px var(--amber)}
+  .packet:nth-child(3){animation-delay:1.7s}
+  @keyframes travel{from{left:-2%}to{left:101%}}
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .ledger-row{animation:none;opacity:1;transform:none}
+    .packet{animation:none;left:50%}
+    .btn,.head-cta{transition:none}
+  }
+
+  /* ================= SECTIONS ================= */
+  section{padding:72px 0}
+  .kicker{
+    display:inline-block;
+    font-family:'IBM Plex Mono',monospace;font-size:.74rem;
+    letter-spacing:.1em;text-transform:uppercase;
+    color:var(--green);border:1px solid var(--green);
+    padding:4px 11px;border-radius:99px;margin-bottom:16px;
+  }
+  h2{
+    font-family:'Archivo',sans-serif;font-stretch:75%;font-weight:800;
+    font-size:clamp(1.7rem,3.4vw,2.4rem);line-height:1.1;margin-bottom:14px;
+  }
+  .section-intro{color:var(--ink-soft);max-width:40em;margin-bottom:40px;font-size:1.03rem}
+
+  /* --- what breaks (on white) --- */
+  .sect-white{background:var(--white);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  .breaks{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:20px}
+  .break-item{
+    background:var(--paper);border:1px solid var(--rule);
+    border-top:4px solid var(--loss);border-radius:5px;
+    padding:24px 22px;
+    transition:transform .18s, box-shadow .18s;
+  }
+  .break-item:hover{transform:translateY(-5px);box-shadow:0 14px 30px rgba(15,31,27,.12)}
+  .break-item h3{
+    font-family:'IBM Plex Mono',monospace;font-size:.82rem;font-weight:500;
+    letter-spacing:.03em;color:var(--loss);margin-bottom:9px;
+  }
+  .break-item p{font-size:.93rem;color:var(--ink-soft)}
+
+  /* --- process (dark band) --- */
+  .sect-dark{
+    background:
+      repeating-linear-gradient(0deg, transparent 0 27px, rgba(255,255,255,.04) 27px 28px),
+      var(--ink-2);
+    color:var(--paper);
+  }
+  .sect-dark .kicker{color:var(--amber);border-color:var(--amber)}
+  .sect-dark .section-intro{color:#AEBBB4}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px}
+  .step{
+    background:rgba(255,255,255,.045);
+    border:1px solid var(--rule-dark);border-radius:5px;
+    padding:26px 24px;position:relative;
+    transition:transform .18s, border-color .18s;
+  }
+  .step:hover{transform:translateY(-4px);border-color:var(--green)}
+  .step .k{
+    display:inline-block;
+    font-family:'IBM Plex Mono',monospace;font-size:.7rem;
+    letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink);background:var(--green-bright);
+    padding:3px 9px;border-radius:2px;margin-bottom:14px;
+  }
+  .step h3{
+    font-family:'Archivo',sans-serif;font-stretch:75%;font-weight:700;
+    font-size:1.2rem;margin-bottom:9px;
+  }
+  .step p{font-size:.93rem;color:#AEBBB4}
+  .step .price-hint{
+    display:block;margin-top:14px;
+    font-family:'IBM Plex Mono',monospace;font-size:.74rem;color:var(--amber);
+  }
+
+  /* --- guarantee ticker --- */
+  .ticker{
+    background:var(--amber);color:var(--ink);
+    overflow:hidden;white-space:nowrap;padding:11px 0;
+    font-family:'Archivo',sans-serif;font-stretch:75%;font-weight:700;
+    font-size:.86rem;letter-spacing:.1em;text-transform:uppercase;
+  }
+  .ticker-inner{display:inline-block;animation:slide 26s linear infinite}
+  .ticker span{margin:0 22px}
+  @keyframes slide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @media (prefers-reduced-motion:reduce){.ticker-inner{animation:none}}
+
+  /* ================= FORM ================= */
+  #intake{background:var(--paper)}
+  form{
+    background:var(--white);border:1px solid var(--rule);
+    border-top:5px solid var(--green);border-radius:6px;
+    padding:38px;max-width:740px;
+    box-shadow:0 18px 44px rgba(15,31,27,.09);
+  }
+  .field{margin-bottom:22px}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  label{
+    display:block;font-family:'IBM Plex Mono',monospace;
+    font-size:.73rem;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--ink-soft);margin-bottom:7px;
+  }
+  label .opt{color:#A9B1A6;text-transform:none;letter-spacing:0}
+  input,textarea{
+    width:100%;font-family:'Public Sans',sans-serif;font-size:.98rem;
+    color:var(--ink);background:var(--paper);
+    border:1px solid var(--rule);border-radius:4px;padding:12px 13px;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  textarea{min-height:135px;resize:vertical}
+  input:focus,textarea:focus{
+    outline:none;border-color:var(--green);
+    box-shadow:0 0 0 3px rgba(30,143,99,.18);
+  }
+  .btn-ink{background:var(--ink);color:var(--paper)}
+  .btn-ink:hover{background:var(--green);transform:translateY(-2px)}
+  .form-note{font-size:.85rem;color:var(--ink-soft);margin-top:16px;max-width:37em}
+  #form-status{
+    margin-top:14px;font-family:'IBM Plex Mono',monospace;
+    font-size:.82rem;color:var(--green);
+  }
+
+  footer{
+    background:var(--ink);color:#8FA098;
+    padding:34px 0 46px;
+    font-family:'IBM Plex Mono',monospace;font-size:.75rem;
+  }
+  footer .wrap{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  footer b{color:var(--green-bright);font-weight:500}
+
+  @media (max-width:860px){
+    .hero{padding-top:52px}
+    .hero-grid{grid-template-columns:1fr;gap:44px;padding-bottom:52px}
+    .ledger{transform:none}
+    .field-row{grid-template-columns:1fr}
+    form{padding:26px 20px}
+    .flow-inner{font-size:.66rem;gap:10px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap head-row">
+    <a class="brand" href="#top">Workanetics<span class="tld">.com</span></a>
+    <a class="head-cta" href="#intake">Start an assessment</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow">Medical billing companies &amp; small practices</p>
+        <h1>Switch billing platforms <span class="hl">without losing</span> <span class="loss">a single record.</span></h1>
+        <p class="lede">The real risk of a migration isn't learning the new software. It's discovering three months later that open AR, claims history, or payer data silently vanished in the transfer. Workanetics moves your data at a fixed price — and proves nothing was dropped with a line-by-line reconciliation report.</p>
+        <div class="cta-row">
+          <a class="btn btn-amber" href="#intake">Request a migration assessment</a>
+          <span class="hero-sub mono">Fixed price · <b>HIPAA-compliant</b> · Reconciled to zero</span>
+        </div>
+      </div>
+
+      <!-- Signature element: the reconciliation report -->
+      <div class="ledger" role="img" aria-label="Sample reconciliation report showing zero variance between source and destination systems">
+        <div class="ledger-head">
+          <span>Reconciliation report — final</span>
+          <span class="stamp">✓ Balanced</span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Data set</th><th>Source</th><th>Destination</th><th>Var.</th></tr>
+          </thead>
+          <tbody>
+            <tr class="ledger-row"><td>Patient records</td><td>24,317</td><td>24,317</td><td class="ok">0 ✓</td></tr>
+            <tr class="ledger-row"><td>Claims history</td><td>148,203</td><td>148,203</td><td class="ok">0 ✓</td></tr>
+            <tr class="ledger-row"><td>Open AR</td><td>$1,284,506.22</td><td>$1,284,506.22</td><td class="ok">0 ✓</td></tr>
+            <tr class="ledger-row"><td>Payer records</td><td>412</td><td>412</td><td class="ok">0 ✓</td></tr>
+            <tr class="ledger-row"><td>ERA / payment files</td><td>36,940</td><td>36,940</td><td class="ok">0 ✓</td></tr>
+          </tbody>
+        </table>
+        <div class="ledger-foot">Every engagement closes with this document: <strong>source vs. destination, line by line, zero unexplained variance.</strong></div>
+      </div>
+    </div>
+
+    <!-- animated migration flow strip -->
+    <div class="flow">
+      <div class="wrap flow-inner" aria-hidden="true">
+        <span class="node">Your current system</span>
+        <div class="flow-track"><span class="packet"></span><span class="packet"></span><span class="packet"></span></div>
+        <span class="node dest">New platform ✓</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WHAT BREAKS -->
+  <section class="sect-white">
+    <div class="wrap">
+      <span class="kicker">The import button lies</span>
+      <h2>What actually breaks in a migration</h2>
+      <p class="section-intro">Built-in import tools handle the easy 80%. These are the parts that quietly go missing — and the reason a migration deserves an engineer, not an import button.</p>
+      <div class="breaks">
+        <div class="break-item">
+          <h3>Open AR balances</h3>
+          <p>Partial payments, adjustments, and credits that don't map cleanly between systems — the money that disappears without anyone noticing until month-end.</p>
+        </div>
+        <div class="break-item">
+          <h3>Claims &amp; denial history</h3>
+          <p>Years of adjudication history that appeals, audits, and timely-filing disputes depend on. Import tools routinely truncate or drop it.</p>
+        </div>
+        <div class="break-item">
+          <h3>Payer &amp; fee schedules</h3>
+          <p>Payer IDs, contracts, and fee schedules that don't line up field-for-field, causing rejections for weeks after go-live.</p>
+        </div>
+        <div class="break-item">
+          <h3>Custom fields &amp; documents</h3>
+          <p>Attached EOBs, notes, and the custom fields your workflow secretly depends on — the data no standard mapping knows exists.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="sect-dark">
+    <div class="wrap">
+      <span class="kicker">Fixed price, every stage</span>
+      <h2>How an engagement works</h2>
+      <p class="section-intro">You know the cost before the migration starts, and you get proof of completeness when it ends.</p>
+      <div class="steps">
+        <div class="step">
+          <span class="k">Stage 1</span>
+          <h3>Paid assessment</h3>
+          <p>A full inventory of your data, a field-by-field map between your current and target platforms, and a flag on every landmine — custom fields, attached documents, ERA history. You receive a migration plan and a fixed quote you could take anywhere.</p>
+        </div>
+        <div class="step">
+          <span class="k">Stage 2</span>
+          <h3>The migration</h3>
+          <p>Extraction, deduplication, mapping, and load — with your current system left untouched and a parallel-run period so nothing goes dark. HIPAA-compliant handling throughout.</p>
+        </div>
+        <div class="step">
+          <span class="k">Stage 3</span>
+          <h3>Reconciliation report</h3>
+          <p>A line-by-line comparison of source and destination: record counts, AR totals, claims history. Zero unexplained variance, in writing, before we call it done.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ticker -->
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-inner">
+      <span>✓ Zero unexplained variance</span><span>✓ Fixed price</span><span>✓ Parallel-run period</span><span>✓ HIPAA-compliant</span><span>✓ Claims history preserved</span><span>✓ AR reconciled to the penny</span>
+      <span>✓ Zero unexplained variance</span><span>✓ Fixed price</span><span>✓ Parallel-run period</span><span>✓ HIPAA-compliant</span><span>✓ Claims history preserved</span><span>✓ AR reconciled to the penny</span>
+    </div>
+  </div>
+
+  <!-- INTAKE -->
+  <section id="intake">
+    <div class="wrap">
+      <span class="kicker">No obligation · reply within one business day</span>
+      <h2>Tell me about your migration</h2>
+      <p class="section-intro">Describe where you are, where you're headed, and what worries you.</p>
+
+      <form id="intake-form" novalidate>
+        <div class="field-row">
+          <div class="field">
+            <label for="name">Your name</label>
+            <input type="text" id="name" name="name" autocomplete="name" required>
+          </div>
+          <div class="field">
+            <label for="email">Work email</label>
+            <input type="email" id="email" name="email" autocomplete="email" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="company">Practice / billing company <span class="opt">(optional)</span></label>
+          <input type="text" id="company" name="company" autocomplete="organization">
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="current">Current platform</label>
+            <input type="text" id="current" name="current" placeholder="e.g., Kareo / Tebra, legacy system, spreadsheets">
+          </div>
+          <div class="field">
+            <label for="target">Target platform <span class="opt">(if known)</span></label>
+            <input type="text" id="target" name="target" placeholder="e.g., AdvancedMD, undecided">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="timeline">Timeline / what's driving the move <span class="opt">(optional)</span></label>
+          <input type="text" id="timeline" name="timeline" placeholder="e.g., current platform sunsets in Q4, contract renewal in 60 days">
+        </div>
+
+        <div class="field">
+          <label for="pain">Describe your situation and pain points</label>
+          <textarea id="pain" name="pain" placeholder="Rough size (providers, monthly claims), what you're worried about losing, anything unusual about your data — custom fields, attached documents, years of history…" required></textarea>
+        </div>
+
+        <button class="btn btn-ink" type="submit">Send inquiry</button>
+        <p id="form-status" role="status" aria-live="polite"></p>
+        <p class="form-note">No patient data in this form, please — just the shape of the problem. PHI is only handled inside an engagement, under a BAA.</p>
+      </form>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Workanetics · Tri-Cities, TN · Serving billing companies nationwide</span>
+    <span>Fixed price · Parallel-run · <b>Reconciled to zero</b></span>
+  </div>
+</footer>
+
+<script>
+  // Assembles a pre-filled email so the form works with no backend.
+  // Replace CONTACT_EMAIL below (or swap the handler for Formspree/Netlify Forms later).
+  const CONTACT_EMAIL = "hello@workanetics.com";
+
+  document.getElementById("intake-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    const f = e.target;
+    if (!f.reportValidity()) return;
+
+    const v = id => document.getElementById(id).value.trim();
+    const subject = "Migration inquiry — " + (v("company") || v("name"));
+    const body = [
+      "Name: " + v("name"),
+      "Email: " + v("email"),
+      "Company: " + (v("company") || "—"),
+      "Current platform: " + (v("current") || "—"),
+      "Target platform: " + (v("target") || "—"),
+      "Timeline / trigger: " + (v("timeline") || "—"),
+      "",
+      "Situation & pain points:",
+      v("pain")
+    ].join("\n");
+
+    window.location.href = "mailto:" + CONTACT_EMAIL +
+      "?subject=" + encodeURIComponent(subject) +
+      "&body=" + encodeURIComponent(body);
+
+    document.getElementById("form-status").textContent =
+      "✓ Your email app should open with the inquiry pre-filled. If it doesn't, email " + CONTACT_EMAIL + " directly.";
+  });
+</script>
+
+</body>
+</html>
