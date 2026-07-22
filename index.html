@@ -125,6 +125,7 @@
   .btn-amber{background:var(--amber);color:var(--ink);box-shadow:0 6px 20px rgba(242,179,61,.28)}
   .btn-amber:hover{background:var(--green-bright);transform:translateY(-2px);box-shadow:0 10px 24px rgba(47,191,133,.3)}
   .btn:focus-visible{outline:3px solid var(--green-bright);outline-offset:2px}
+  .btn[disabled]{opacity:.6;cursor:default;transform:none}
   .hero-sub{font-size:.82rem;color:#8FA098}
   .hero-sub b{color:var(--green-bright);font-weight:500}
 
@@ -318,6 +319,8 @@
     outline:none;border-color:var(--green);
     box-shadow:0 0 0 3px rgba(30,143,99,.18);
   }
+  /* Honeypot — visually removed, still in the DOM for bots */
+  .hp{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
   .btn-ink{background:var(--ink);color:var(--paper)}
   .btn-ink:hover{background:var(--green);transform:translateY(-2px)}
   .form-note{font-size:.85rem;color:var(--ink-soft);margin-top:16px;max-width:37em}
@@ -325,6 +328,7 @@
     margin-top:14px;font-family:'IBM Plex Mono',monospace;
     font-size:.82rem;color:var(--green);
   }
+  #form-status.err{color:var(--loss)}
 
   footer{
     background:var(--ink);color:#8FA098;
@@ -371,7 +375,7 @@
       <!-- Signature element: the reconciliation report -->
       <div class="ledger" role="img" aria-label="Sample reconciliation report showing zero variance between source and destination systems">
         <div class="ledger-head">
-          <span>Reconciliation report — final</span>
+          <span>Reconciliation report — sample</span>
           <span class="stamp">✓ Balanced</span>
         </div>
         <table>
@@ -383,10 +387,10 @@
             <tr class="ledger-row"><td>Claims history</td><td>148,203</td><td>148,203</td><td class="ok">0 ✓</td></tr>
             <tr class="ledger-row"><td>Open AR</td><td>$1,284,506.22</td><td>$1,284,506.22</td><td class="ok">0 ✓</td></tr>
             <tr class="ledger-row"><td>Payer records</td><td>412</td><td>412</td><td class="ok">0 ✓</td></tr>
-            <tr class="ledger-row"><td>ERA / payment files</td><td>36,940</td><td>36,940</td><td class="ok">0 ✓</td></tr>
+            <tr class="ledger-row"><td>Payment history</td><td>36,940</td><td>36,940</td><td class="ok">0 ✓</td></tr>
           </tbody>
         </table>
-        <div class="ledger-foot">Every engagement closes with this document: <strong>source vs. destination, line by line, zero unexplained variance.</strong></div>
+        <div class="ledger-foot">Illustrative figures — every engagement closes with this document: <strong>source vs. destination, line by line, zero unexplained variance.</strong></div>
       </div>
     </div>
 
@@ -485,6 +489,12 @@
           <input type="text" id="company" name="company" autocomplete="organization">
         </div>
 
+        <!-- Honeypot: hidden from people, filled by bots -->
+        <div class="field hp" aria-hidden="true">
+          <label for="website">Website</label>
+          <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
         <div class="field-row">
           <div class="field">
             <label for="current">Current platform</label>
@@ -523,37 +533,60 @@
 </footer>
 
 <script>
-  // Assembles a pre-filled email so the form works with no backend.
-  // Replace CONTACT_EMAIL below (or swap the handler for Formspree/Netlify Forms later).
+  // Submits the inquiry to the Pages Function at /api/inquiry.
+  // CONTACT_EMAIL is only shown to the visitor if the send fails.
   const CONTACT_EMAIL = "hello@workanetics.com";
 
-  document.getElementById("intake-form").addEventListener("submit", function (e) {
+  const form = document.getElementById("intake-form");
+  const statusEl = document.getElementById("form-status");
+  const submitBtn = form.querySelector('button[type="submit"]');
+
+  form.addEventListener("submit", async function (e) {
     e.preventDefault();
-    const f = e.target;
-    if (!f.reportValidity()) return;
+    if (!form.reportValidity()) return;
 
     const v = id => document.getElementById(id).value.trim();
-    const subject = "Migration inquiry — " + (v("company") || v("name"));
-    const body = [
-      "Name: " + v("name"),
-      "Email: " + v("email"),
-      "Company: " + (v("company") || "—"),
-      "Current platform: " + (v("current") || "—"),
-      "Target platform: " + (v("target") || "—"),
-      "Timeline / trigger: " + (v("timeline") || "—"),
-      "",
-      "Situation & pain points:",
-      v("pain")
-    ].join("\n");
+    const payload = {
+      name: v("name"),
+      email: v("email"),
+      company: v("company"),
+      website: v("website"), // honeypot — empty for real visitors
+      current: v("current"),
+      target: v("target"),
+      timeline: v("timeline"),
+      pain: v("pain")
+    };
 
-    window.location.href = "mailto:" + CONTACT_EMAIL +
-      "?subject=" + encodeURIComponent(subject) +
-      "&body=" + encodeURIComponent(body);
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Sending…";
+    statusEl.classList.remove("err");
+    statusEl.textContent = "";
 
-    document.getElementById("form-status").textContent =
-      "✓ Your email app should open with the inquiry pre-filled. If it doesn't, email " + CONTACT_EMAIL + " directly.";
+    try {
+      const res = await fetch("/api/inquiry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const out = await res.json().catch(() => ({}));
+
+      if (res.ok && out.ok) {
+        statusEl.textContent = "✓ Inquiry sent. You'll hear back within one business day.";
+        form.reset();
+        submitBtn.textContent = "Send inquiry";
+        submitBtn.disabled = false;
+      } else {
+        throw new Error(out.error || "send_failed");
+      }
+    } catch (err) {
+      statusEl.classList.add("err");
+      statusEl.textContent = "The inquiry didn't send. Email " + CONTACT_EMAIL + " directly.";
+      submitBtn.textContent = "Send inquiry";
+      submitBtn.disabled = false;
+    }
   });
 </script>
 
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"f16df53ff63242e4bd8edfd0497d8ec0","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
